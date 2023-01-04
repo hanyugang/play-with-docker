@@ -2,6 +2,7 @@ package config
 
 import (
 	"flag"
+	"os"
 	"regexp"
 
 	"github.com/gorilla/securecookie"
@@ -19,16 +20,25 @@ const (
 	AliasPortGroupRegex   = "^.*pwd" + AliasGroupRegex + "(?:-?(" + PortRegex + "))?\\..*$"
 )
 
-var NameFilter = regexp.MustCompile(PWDHostPortGroupRegex)
-var AliasFilter = regexp.MustCompile(AliasPortGroupRegex)
+var (
+	NameFilter  = regexp.MustCompile(PWDHostPortGroupRegex)
+	AliasFilter = regexp.MustCompile(AliasPortGroupRegex)
+)
 
-var PortNumber, SessionsFile, PWDContainerName, L2ContainerName, L2Subdomain, HashKey, SSHKeyPath, L2RouterIP, CookieHashKey, CookieBlockKey string
-var UseLetsEncrypt, ExternalDindVolume, NoWindows bool
-var LetsEncryptCertsDir string
-var MaxLoadAvg float64
-var ForceTLS bool
-var SecureCookie *securecookie.SecureCookie
-var AdminToken string
+var (
+	PortNumber, SessionsFile, PWDContainerName, L2ContainerName, L2Subdomain, HashKey, SSHKeyPath, L2RouterIP, CookieHashKey, CookieBlockKey string
+	UseLetsEncrypt, ExternalDindVolume, NoWindows                                                                                            bool
+	LetsEncryptCertsDir                                                                                                                      string
+	MaxLoadAvg                                                                                                                               float64
+	ForceTLS                                                                                                                                 bool
+	SecureCookie                                                                                                                             *securecookie.SecureCookie
+	AdminToken                                                                                                                               string
+)
+
+// Unsafe enables a number of unsafe features when set. It is principally
+// intended to be used in development. For example, it allows the caller to
+// specify the Docker networks to join.
+var Unsafe bool
 
 var PlaygroundDomain string
 
@@ -60,8 +70,9 @@ func ParseFlags() {
 
 	flag.StringVar(&SegmentId, "segment-id", "", "Segment id to post metrics")
 
+	flag.BoolVar(&Unsafe, "unsafe", os.Getenv("PWD_UNSAFE") == "true", "Operate in unsafe mode")
+
 	flag.Parse()
 
 	SecureCookie = securecookie.New([]byte(CookieHashKey), []byte(CookieBlockKey))
-
 }

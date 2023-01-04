@@ -4,11 +4,14 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"embed"
 	"fmt"
 	"html/template"
+	"io/fs"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"path"
 	"strings"
 	"time"
 
@@ -25,13 +28,21 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/urfave/negroni"
-	oauth2FB "golang.org/x/oauth2/facebook"
 	oauth2Github "golang.org/x/oauth2/github"
+	oauth2Google "golang.org/x/oauth2/google"
+	"google.golang.org/api/people/v1"
 )
 
-var core pwd.PWDApi
-var e event.EventApi
-var landings = map[string][]byte{}
+var (
+	core     pwd.PWDApi
+	e        event.EventApi
+	landings = map[string][]byte{}
+)
+
+//go:embed www/*
+var embeddedFiles embed.FS
+
+var staticFiles fs.FS
 
 var latencyHistogramVec = prometheus.NewHistogramVec(prometheus.HistogramOpts{
 	Name:    "pwd_handlers_duration_ms",
@@ -43,7 +54,7 @@ type HandlerExtender func(h *mux.Router)
 
 func init() {
 	prometheus.MustRegister(latencyHistogramVec)
-
+	staticFiles, _ = fs.Sub(embeddedFiles, "www")
 }
 
 func Bootstrap(c pwd.PWDApi, ev event.EventApi) {
@@ -62,7 +73,7 @@ func Register(extend HandlerExtender) {
 			strings.HasSuffix(origin, "play-with-docker.com") ||
 			strings.HasSuffix(origin, "play-with-kubernetes.com") ||
 			strings.HasSuffix(origin, "docker.com") ||
-			strings.HasSuffix(origin, "play-with-golang.now.sh") {
+			strings.HasSuffix(origin, "play-with-go.dev") {
 			return true
 		}
 		return false
@@ -83,19 +94,21 @@ func Register(extend HandlerExtender) {
 	corsRouter.HandleFunc("/sessions/{sessionId}/instances/{instanceName}/file", file).Methods("GET")
 
 	r.HandleFunc("/sessions/{sessionId}/instances/{instanceName}/editor", func(rw http.ResponseWriter, r *http.Request) {
-		http.ServeFile(rw, r, "www/editor.html")
+		serveAsset(rw, r, "editor.html")
 	})
 
 	r.HandleFunc("/ooc", func(rw http.ResponseWriter, r *http.Request) {
-		http.ServeFile(rw, r, "./www/ooc.html")
+		serveAsset(rw, r, "ooc.html")
 	}).Methods("GET")
 	r.HandleFunc("/503", func(rw http.ResponseWriter, r *http.Request) {
-		http.ServeFile(rw, r, "./www/503.html")
+		serveAsset(rw, r, "503.html")
 	}).Methods("GET")
 	r.HandleFunc("/p/{sessionId}", Home).Methods("GET")
-	r.PathPrefix("/assets").Handler(http.FileServer(http.Dir("./www")))
+	r.PathPrefix("/assets").HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		serveAsset(rw, r, r.URL.Path[1:])
+	})
 	r.HandleFunc("/robots.txt", func(rw http.ResponseWriter, r *http.Request) {
-		http.ServeFile(rw, r, "www/robots.txt")
+		serveAsset(rw, r, "robots.txt")
 	})
 
 	corsRouter.HandleFunc("/sessions/{sessionId}/ws/", WSH)
@@ -105,7 +118,7 @@ func Register(extend HandlerExtender) {
 	r.HandleFunc("/", Landing).Methods("GET")
 
 	corsRouter.HandleFunc("/users/me", LoggedInUser).Methods("GET")
-	r.HandleFunc("/users/{userId:^(?me)}", GetUser).Methods("GET")
+	r.HandleFunc("/users/{userId:.{3,}}", GetUser).Methods("GET")
 	r.HandleFunc("/oauth/providers", ListProviders).Methods("GET")
 	r.HandleFunc("/oauth/providers/{provider}/login", Login).Methods("GET")
 	r.HandleFunc("/oauth/providers/{provider}/callback", LoginCallback).Methods("GET")
@@ -185,6 +198,15 @@ func Register(extend HandlerExtender) {
 	}
 }
 
+func serveAsset(w http.ResponseWriter, r *http.Request, name string) {
+	a, err := fs.ReadFile(staticFiles, name)
+	if err != nil {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	http.ServeContent(w, r, name, time.Time{}, bytes.NewReader(a))
+}
+
 func initPlaygrounds() {
 	pgs, err := core.PlaygroundList()
 	if err != nil {
@@ -202,8 +224,16 @@ func initAssets(p *types.Playground) {
 		p.AssetsDir = "default"
 	}
 
+	lpath := path.Join(p.AssetsDir, "landing.html")
+	landing, err := fs.ReadFile(staticFiles, lpath)
+	if err != nil {
+		log.Printf("Could not load %v: %v", lpath, err)
+		return
+	}
+
 	var b bytes.Buffer
-	t, err := template.New("landing.html").Delims("[[", "]]").ParseFiles(fmt.Sprintf("./www/%s/landing.html", p.AssetsDir))
+	t := template.New("landing.html").Delims("[[", "]]")
+	t, err = t.Parse(string(landing))
 	if err != nil {
 		log.Fatalf("Error parsing template %v", err)
 	}
@@ -230,27 +260,26 @@ func initOauthProviders(p *types.Playground) {
 
 		config.Providers[p.Id]["github"] = conf
 	}
-	if p.FacebookClientID != "" && p.FacebookClientSecret != "" {
+	if p.GoogleClientID != "" && p.GoogleClientSecret != "" {
 		conf := &oauth2.Config{
-			ClientID:     p.FacebookClientID,
-			ClientSecret: p.FacebookClientSecret,
-			Scopes:       []string{"email", "public_profile"},
-			Endpoint:     oauth2FB.Endpoint,
+			ClientID:     p.GoogleClientID,
+			ClientSecret: p.GoogleClientSecret,
+			Scopes:       []string{people.UserinfoEmailScope, people.UserinfoProfileScope},
+			Endpoint:     oauth2Google.Endpoint,
 		}
 
-		config.Providers[p.Id]["facebook"] = conf
+		config.Providers[p.Id]["google"] = conf
 	}
 	if p.DockerClientID != "" && p.DockerClientSecret != "" {
 
 		endpoint := getDockerEndpoint(p)
-		oauth2.RegisterBrokenAuthHeaderProvider(fmt.Sprintf(".%s", endpoint))
 		conf := &oauth2.Config{
 			ClientID:     p.DockerClientID,
 			ClientSecret: p.DockerClientSecret,
 			Scopes:       []string{"openid"},
 			Endpoint: oauth2.Endpoint{
-				AuthURL:  fmt.Sprintf("https://%s/id/oauth/authorize/", endpoint),
-				TokenURL: fmt.Sprintf("https://%s/id/oauth/token", endpoint),
+				AuthURL:  fmt.Sprintf("https://%s/authorize/", endpoint),
+				TokenURL: fmt.Sprintf("https://%s/oauth/token", endpoint),
 			},
 		}
 
