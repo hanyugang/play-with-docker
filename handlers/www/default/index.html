@@ -7,15 +7,15 @@
         <link rel="stylesheet" href="/assets/xterm/xterm.css" />
         <link rel="stylesheet" href="/assets/xterm/addons/fullscreen/fullscreen.css" />
         <link rel="stylesheet" href="/assets/style.css" />
+        <!-- Google tag (gtag.js) -->
+        <script async src="https://www.googletagmanager.com/gtag/js?id=UA-89019737-3"></script>
         <script>
-            (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
-            (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
-            m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
-            })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
-            ga('create', 'UA-89019737-1', 'auto');
-            ga('send', 'pageview');
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+
+          gtag('config', 'UA-89019737-3');
         </script>
-        <script type="text/javascript" src="//cdn.bizible.com/scripts/bizible.js"async=""></script>
     </head>
     <body>
 
@@ -59,17 +59,18 @@
                 </md-toolbar>
                 <md-content layout-padding>
                   <md-button ng-click="newInstance()" ng-disabled="isInstanceBeingCreated" class="md-primary">{{newInstanceBtnText}}</md-button>
-              <md-list class="md-dense" flex>
-                <md-list-item ng-switch on="instance.isManager || instance.isK8sManager" class="md-2-line" ng-repeat="instance in instances | orderBy:'hostname'" ng-click="showInstance(instance)" ng-class="instance.name == selectedInstance.name ? 'selected' : false">
-                    <md-icon ng-switch-when="true" style="color: blue" md-svg-icon="person"></md-icon>
-                    <md-icon ng-switch-when="false" md-svg-icon="person-outline"></md-icon>
-                    <div class="md-list-item-text" layout="column">
+                  <md-list class="md-dense" flex>
+                    <md-list-item ng-switch on="instance.isManager || instance.isK8sManager" class="md-2-line" ng-repeat="instance in instances | orderBy:'hostname'" ng-click="showInstance(instance)" ng-class="instance.name == selectedInstance.name ? 'selected' : false">
+                      <md-icon ng-switch-when="true" style="color: blue" md-svg-icon="person"></md-icon>
+                      <md-icon ng-switch-when="false" md-svg-icon="person-outline"></md-icon>
+                      <div class="md-list-item-text" layout="column">
                         <h3>{{instance.ip}}</h3>
                         <h4>{{instance.hostname}}</h4>
-                    </div>
-                    <md-divider ng-if="!$last"></md-divider>
-                </md-list-item>
-              </md-list>
+                      </div>
+                      <md-divider ng-if="!$last"></md-divider>
+                    </md-list-item>
+                  </md-list>
+                  <survey-request></survey-request>
                 </md-content>
               </md-sidenav>
               <md-content flex layout-padding ng-if="!instances.length">
@@ -97,7 +98,7 @@
                                 Open Port
                              </md-button>
                              <md-chips ng-model="instance.ports" name="port" readonly="true" md-removable="false">
-                               <md-chip-template> 
+                               <md-chip-template>
                                <strong><a href="{{getProxyUrl(instance, $chip)}}" title="{{getProxyUrl(instance, $chip)}}" target="_blank">{{$chip}}</a></strong>
                                </md-chip-template>
                              </md-chips>
@@ -155,10 +156,10 @@
             <div class="md-dialog-container" id="builderDialog">
                 <md-dialog>
                     <md-toolbar>
-                         <div class="md-toolbar-tools">    
+                         <div class="md-toolbar-tools">
                              <h2>Session stack builder</h2>
-                             <span flex></span>            
-                         </div>                            
+                             <span flex></span>
+                         </div>
                     </md-toolbar>
                     <md-dialog-content layout-padding>
                         <div flex="100" style="margin: 20px 0px;">
@@ -181,7 +182,7 @@
                 </md-dialog>
             </div>
         </div>
-            
+
 
         <script type="text/ng-template" id="templates-modal.html">
             <md-toolbar>
@@ -226,6 +227,20 @@
                         Close
                     </md-button>
                 </md-dialog-actions>
+        </script>
+        <script type="text/ng-template" id="survey-toast.html">
+            <md-toast role="alert" aria-relevant="all">
+                <span class="md-toast-text">We'd love to hear about your usage of Play with Docker. Please take a moment to fill out our survey.</span>
+                <span class="md-visually-hidden">
+                    Press Escape to dismiss.
+                </span>
+                <md-button class="md-highlight" ng-click="ctrl.openSurvey($event)">
+                    Take Survey
+                </md-button>
+                <md-button ng-click="ctrl.closeToast()">
+                    Not now
+                </md-button>
+            </md-toast>
         </script>
         <script type="text/ng-template" id="settings-modal.html">
             <md-toolbar>
@@ -305,13 +320,13 @@
     integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4="
       crossorigin="anonymous"></script>
 
-        <script src="https://unpkg.com/angular@1.5.5/angular.min.js"></script>
-        <script src="https://unpkg.com/angular-animate@1.5.5/angular-animate.min.js"></script>
-        <script src="https://unpkg.com/angular-aria@1.5.5/angular-aria.min.js"></script>
-        <script src="https://unpkg.com/angular-messages@1.5.5/angular-messages.min.js"></script>
-        <script src="https://unpkg.com/angular-material@1.1.0/angular-material.min.js"></script>
-        <script src="https://cdn.rawgit.com/zenorocha/clipboard.js/master/dist/clipboard.min.js"></script>
-        <script src="https://unpkg.com/ngclipboard@2.0.0/dist/ngclipboard.min.js"></script>
+        <script crossorigin="anonymous" src="https://unpkg.com/angular@1.5.5/angular.min.js"></script>
+        <script crossorigin="anonymous" src="https://unpkg.com/angular-animate@1.5.5/angular-animate.min.js"></script>
+        <script crossorigin="anonymous" src="https://unpkg.com/angular-aria@1.5.5/angular-aria.min.js"></script>
+        <script crossorigin="anonymous" src="https://unpkg.com/angular-messages@1.5.5/angular-messages.min.js"></script>
+        <script crossorigin="anonymous" src="https://unpkg.com/angular-material@1.1.0/angular-material.min.js"></script>
+        <script crossorigin="anonymous" src="https://cdn.rawgit.com/zenorocha/clipboard.js/master/dist/clipboard.min.js"></script>
+        <script crossorigin="anonymous" src="https://unpkg.com/ngclipboard@2.0.0/dist/ngclipboard.min.js"></script>
 
 
         <script src="https://unpkg.com/ng-file-upload@12.2.13/dist/ng-file-upload-all.min.js" integrity="sha384-NbBOS/QuqJqwWOtYg/L3ZDhgl/6GFyvkRMypJQLgoisMPtJiHj5uQ+3bj8V8Muwm" crossorigin="anonymous"></script>
@@ -319,10 +334,10 @@
         <script src="/assets/xterm/xterm.js"></script>
         <script src="/assets/xterm/addons/fit/fit.js"></script>
         <script src="/assets/xterm/addons/fullscreen/fullscreen.js"></script>
-        <script src="/assets/setup-xterm.js"></script>        
+        <script src="/assets/setup-xterm.js"></script>
         <script src="/assets/attach.js"></script>
         <script src="https://unpkg.com/moment@2.16.0/min/moment.min.js"></script>
-        <script src="/assets/app.js"></script>        
+        <script src="/assets/app.js"></script>
         <script type="text/javascript" charset="utf-8">
             window.onbeforeunload = function (e) {
                 e = e || window.event;

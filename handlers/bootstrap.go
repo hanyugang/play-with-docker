@@ -70,10 +70,10 @@ func Register(extend HandlerExtender) {
 
 	corsHandler := gh.CORS(gh.AllowCredentials(), gh.AllowedHeaders([]string{"x-requested-with", "content-type"}), gh.AllowedMethods([]string{"GET", "POST", "HEAD", "DELETE"}), gh.AllowedOriginValidator(func(origin string) bool {
 		if strings.Contains(origin, "localhost") ||
-			strings.HasSuffix(origin, "play-with-docker.com") ||
-			strings.HasSuffix(origin, "play-with-kubernetes.com") ||
-			strings.HasSuffix(origin, "docker.com") ||
-			strings.HasSuffix(origin, "play-with-go.dev") {
+			strings.HasSuffix(origin, ".play-with-docker.com") ||
+			strings.HasSuffix(origin, ".play-with-kubernetes.com") ||
+			strings.HasSuffix(origin, ".docker.com") ||
+			strings.HasSuffix(origin, ".play-with-go.dev") {
 			return true
 		}
 		return false
@@ -276,7 +276,7 @@ func initOauthProviders(p *types.Playground) {
 		conf := &oauth2.Config{
 			ClientID:     p.DockerClientID,
 			ClientSecret: p.DockerClientSecret,
-			Scopes:       []string{"openid"},
+			Scopes:       []string{"openid", "full_access:account"},
 			Endpoint: oauth2.Endpoint{
 				AuthURL:  fmt.Sprintf("https://%s/authorize/", endpoint),
 				TokenURL: fmt.Sprintf("https://%s/oauth/token", endpoint),

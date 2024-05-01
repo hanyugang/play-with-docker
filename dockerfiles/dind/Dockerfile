@@ -10,13 +10,23 @@ ENV PATH $PATH:$GOPATH
 
 ENV DOCKER_TLS_CERTDIR=""
 ENV DOCKER_CLI_EXPERIMENTAL=enabled
-ENV COMPOSE_VERSION=2.6.1
 
-
-# Add bash completion and set bash as default shell
+# Install compose
+ENV COMPOSE_VERSION=2.18.1
 RUN mkdir -p /usr/lib/docker/cli-plugins \
     && curl -LsS https://github.com/docker/compose/releases/download/v$COMPOSE_VERSION/docker-compose-linux-x86_64 -o /usr/lib/docker/cli-plugins/docker-compose \
     && chmod +x /usr/lib/docker/cli-plugins/docker-compose
+
+
+# Install scout
+ENV SCOUT_VERSION=1.0.9
+RUN wget -O /tmp/scout.tar.gz https://github.com/docker/scout-cli/releases/download/v1.0.9/docker-scout_1.0.9_linux_amd64.tar.gz \
+    && tar -xvf /tmp/scout.tar.gz docker-scout -C /usr/local/bin \
+    && chmod +x /usr/local/bin/docker-scout \
+    && ln -s $(which docker-scout) /usr/lib/docker/cli-plugins \
+    && rm /tmp/scout.tar.gz
+    
+    
 
 # Add bash completion and set bash as default shell
 RUN mkdir /etc/bash_completion.d \
@@ -39,8 +49,8 @@ WORKDIR /root
 
 # Setup certs and ssh keys
 RUN mkdir -p /var/run/pwd/certs && mkdir -p /var/run/pwd/uploads \
-    && ssh-keygen -N "" -t rsa -f  /etc/ssh/ssh_host_rsa_key >/dev/null \
-    && mkdir ~/.ssh && ssh-keygen -N "" -t rsa -f ~/.ssh/id_rsa \
+    && ssh-keygen -N "" -t ed25519 -f  /etc/ssh/ssh_host_ed25519_key >/dev/null \
+    && mkdir ~/.ssh && ssh-keygen -N "" -t ed25519 -f ~/.ssh/id_rsa \
     && cat ~/.ssh/id_rsa.pub > ~/.ssh/authorized_keys
 
 # Remove IPv6 alias for localhost and start docker in the background ...
